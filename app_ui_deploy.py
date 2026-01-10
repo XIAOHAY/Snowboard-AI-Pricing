@@ -143,7 +143,7 @@ with tab1:
                                     /* 4. 中心物体：雪板 (静止) */
                                     .center-obj {
                                         position: absolute;
-                                        width: 70px; /* 稍微缩小 */
+                                        width: 110px; /* 稍微缩小 */
                                         z-index: 10;
                                         /* 👇 替换为你的 GitHub Raw 链接 */
                                         content: url('https://raw.githubusercontent.com/XIAOHAY/Snowboard-AI-Pricing/main/img/snowboard.png');
@@ -158,18 +158,24 @@ with tab1:
                                         animation: orbit-spin 6s linear infinite;
                                     }
 
-                                    /* 6. 矮人工匠 */
+                                   /* 5. 矮人工匠 (缩小) */
                                     .dwarf-artisan {
                                         position: absolute;
-                                        top: 0;
+                                        top: 15px; /* 🔴 稍微下移一点，让他贴近轨道 */
                                         left: 50%;
-                                        width: 90px;
-                                        margin-left: -45px; /* 居中校正 */
-                                        margin-top: -15px;
-
+                                        
+                                        /* 🔴 修改前: 90px -> 修改后: 60px (变小) */
+                                        width: 60px; 
+                                        
+                                        /* 🔴 核心修正: 这个值必须是 width 的一半 (负数) */
+                                        /* 修改前: -45px -> 修改后: -30px */
+                                        margin-left: -30px; 
+                                        
+                                        margin-top: 0px;
+                                        
                                         animation: counter-spin 6s linear infinite; 
-
-                                        /* 👇 替换为你的 GitHub Raw 链接 */
+                                        
+                                        /* 你的 GitHub 链接保持不变 */
                                         content: url('https://raw.githubusercontent.com/XIAOHAY/Snowboard-AI-Pricing/main/img/dwarf.png'); 
                                     }
 
