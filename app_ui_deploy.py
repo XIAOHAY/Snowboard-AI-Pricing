@@ -122,7 +122,7 @@ with tab1:
                         width: 80px;
                         z-index: 10;
                         /* 👇 请替换为你生成的雪板透明 PNG */
-                        content: url('https://img.icons8.com/external-flaticons-lineal-color-flat-icons/256/external-snowboard-winter-ski-resort-flaticons-lineal-color-flat-icons.png');
+                        content: url('https://raw.githubusercontent.com/XIAOHAY/Snowboard-AI-Pricing/main/img/snowboard.png');
                     }
 
                     /* 4. 轨道容器：负责整体旋转 */
@@ -147,7 +147,7 @@ with tab1:
                         animation: counter-spin 6s linear infinite; 
 
                         /* 👇 请替换为你生成的矮人透明 PNG */
-                        content: url('https://img.icons8.com/color/256/gimli.png'); 
+                        content: url('https://raw.githubusercontent.com/XIAOHAY/Snowboard-AI-Pricing/main/img/dwarf.png'); 
                     }
 
                     /* 6. 文字提示 */
