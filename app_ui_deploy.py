@@ -90,36 +90,36 @@ with tab1:
                 # 定义 CSS 动画和 HTML 结构
                 loading_html = """
                                 <style>
-                                    /* 1. 全屏遮罩：只负责变暗，锁住背景 */
+                                    /* 1. 全屏遮罩 */
                                     .loading-overlay {
                                         position: fixed;
                                         top: 0;
                                         left: 0;
                                         width: 100vw;
                                         height: 100vh;
-                                        background: rgba(0, 0, 0, 0.3); /* 轻微变暗 */
+                                        background: rgba(0, 0, 0, 0.4);
                                         display: flex;
                                         justify-content: center;
-                                        align-items: center; /* 垂直水平居中 */
+                                        align-items: center;
                                         z-index: 99999;
                                     }
 
-                                    /* 2. 核心弹窗：占屏幕约 1/3，高级毛玻璃 */
+                                    /* 2. 核心弹窗 (性能优化版) */
                                     .glass-card {
                                         position: relative;
-                                        width: 35vw;             /* 宽度占视口的 35% */
-                                        min-width: 320px;        /* 手机端最小宽度 */
-                                        max-width: 500px;        /* 桌面端最大宽度 */
-                                        padding: 40px 20px;      /* 内部留白 */
+                                        width: 35vw;
+                                        min-width: 320px;
+                                        max-width: 500px;
+                                        padding: 40px 20px;
 
-                                        /* 🔥 核心：暗色磨砂玻璃质感 */
-                                        background: rgba(30, 30, 30, 0.75); /* 深灰半透明 */
-                                        backdrop-filter: blur(20px);        /* 强力模糊背景 */
-                                        -webkit-backdrop-filter: blur(20px);
+                                        /* 🎨 优化：稍微降低模糊度以提升 FPS */
+                                        background: rgba(30, 30, 30, 0.85); 
+                                        backdrop-filter: blur(12px);  /* 从 20px 降到 12px */
+                                        -webkit-backdrop-filter: blur(12px);
 
-                                        border: 1px solid rgba(255, 255, 255, 0.2); /* 亮色边框增强玻璃感 */
-                                        border-radius: 20px;     /* 圆角 */
-                                        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4); /* 浮起阴影 */
+                                        border: 1px solid rgba(255, 255, 255, 0.15);
+                                        border-radius: 20px;
+                                        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
 
                                         display: flex;
                                         flex-direction: column;
@@ -132,50 +132,54 @@ with tab1:
                                     /* 3. 动画舞台 */
                                     .stage-container {
                                         position: relative;
-                                        width: 220px;  /* 稍微缩小舞台以适应弹窗 */
-                                        height: 220px;
+                                        width: 240px;
+                                        height: 240px;
                                         display: flex;
                                         justify-content: center;
                                         align-items: center;
                                         margin-bottom: 20px;
                                     }
 
-                                    /* 4. 中心物体：雪板 (静止) */
+                                    /* 4. 中心物体：雪板 */
                                     .center-obj {
                                         position: absolute;
-                                        width: 110px; /* 稍微缩小 */
+                                        width: 110px;
                                         z-index: 10;
-                                        /* 👇 替换为你的 GitHub Raw 链接 */
+                                        /* 👇 你的 GitHub Raw 链接 */
                                         content: url('https://raw.githubusercontent.com/XIAOHAY/Snowboard-AI-Pricing/main/img/snowboard.png');
                                     }
 
-                                    /* 5. 轨道容器 */
+                                    /* 5. 轨道容器 (🚀 GPU 加速核心) */
                                     .orbit-container {
                                         position: absolute;
                                         width: 100%;
                                         height: 100%;
                                         z-index: 20;
-                                        animation: orbit-spin 6s linear infinite;
+
+                                        /* 🚀 性能优化关键指令 */
+                                        will-change: transform;
+                                        transform: translateZ(0); 
+
+                                        animation: orbit-spin 5s linear infinite; /* 稍微加快一点速度 (6s->5s) 也会感觉更流畅 */
                                     }
 
-                                   /* 5. 矮人工匠 (缩小) */
+                                    /* 6. 矮人工匠 (🚀 GPU 加速核心) */
                                     .dwarf-artisan {
                                         position: absolute;
-                                        top: 15px; /* 🔴 稍微下移一点，让他贴近轨道 */
+                                        top: 15px;
                                         left: 50%;
-                                        
-                                        /* 🔴 修改前: 90px -> 修改后: 60px (变小) */
                                         width: 60px; 
-                                        
-                                        /* 🔴 核心修正: 这个值必须是 width 的一半 (负数) */
-                                        /* 修改前: -45px -> 修改后: -30px */
                                         margin-left: -30px; 
-                                        
                                         margin-top: 0px;
-                                        
-                                        animation: counter-spin 6s linear infinite; 
-                                        
-                                        /* 你的 GitHub 链接保持不变 */
+
+                                        /* 🚀 性能优化关键指令 */
+                                        will-change: transform;
+                                        transform: translateZ(0);
+                                        backface-visibility: hidden; /* 防止旋转锯齿 */
+
+                                        animation: counter-spin 5s linear infinite; /* 必须和轨道时间一致 */
+
+                                        /* 👇 你的 GitHub Raw 链接 */
                                         content: url('https://raw.githubusercontent.com/XIAOHAY/Snowboard-AI-Pricing/main/img/dwarf.png'); 
                                     }
 
@@ -190,19 +194,19 @@ with tab1:
 
                                     .sub-text {
                                         font-size: 0.9rem;
-                                        color: #dddddd; /* 稍微灰一点的白 */
+                                        color: #dddddd;
                                         line-height: 1.4;
                                     }
 
-                                    /* --- 关键帧保持不变 --- */
+                                    /* --- 关键帧 --- */
                                     @keyframes orbit-spin {
-                                        from { transform: rotate(0deg); }
-                                        to { transform: rotate(360deg); }
+                                        0% { transform: rotate(0deg); }
+                                        100% { transform: rotate(360deg); }
                                     }
 
                                     @keyframes counter-spin {
-                                        from { transform: rotate(0deg); }
-                                        to { transform: rotate(-360deg); }
+                                        0% { transform: rotate(0deg); }
+                                        100% { transform: rotate(-360deg); }
                                     }
                                 </style>
 
