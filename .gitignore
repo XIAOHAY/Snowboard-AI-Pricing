@@ -1,0 +1,7 @@
+.env
+__pycache__/
+*.pyc
+snowboard_data.db
+.DS_Store
+.idea/
+.vscode/
