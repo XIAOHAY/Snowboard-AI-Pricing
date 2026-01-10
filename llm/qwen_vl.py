@@ -114,7 +114,7 @@ def analyze_snowboard_image(image_path: str, user_hint: str = None) -> dict:
             local_file_path = f"file://{image_path}" if not image_path.startswith("file://") else image_path
 
             response = MultiModalConversation.call(
-                model="qwen3-vl-plus",
+                model="qwen-vl-max",
                 messages=[
                     {
                         "role": "user",
@@ -123,7 +123,10 @@ def analyze_snowboard_image(image_path: str, user_hint: str = None) -> dict:
                             {"text": final_prompt}  # 使用包含线索的 Prompt
                         ]
                     }
-                ]
+                ],
+                # 🔥【核心修改】加上这两行参数，给视觉模型“降温”
+                temperature = 0.1,  # 接近 0 表示极度理性，每次输出几乎一致
+                top_p = 0.2,  # 限制它的发散思维，只选概率最高的词
             )
 
             # 检查 HTTP 状态码

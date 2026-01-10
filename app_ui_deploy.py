@@ -132,8 +132,8 @@ with tab1:
                                     /* 3. 动画舞台 */
                                     .stage-container {
                                         position: relative;
-                                        width: 300px;
-                                        height: 300px;
+                                        width: 270px;
+                                        height: 370px;
                                         display: flex;
                                         justify-content: center;
                                         align-items: center;
@@ -168,8 +168,8 @@ with tab1:
                                         position: absolute;
                                         top: 15px;
                                         left: 50%;
-                                        width: 60px; 
-                                        margin-left: -30px; 
+                                        width: 80px; 
+                                        margin-left: -40px; 
                                         margin-top: 0px;
 
                                         /* 🚀 性能优化关键指令 */
