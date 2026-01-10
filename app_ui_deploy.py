@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*
 # -*- coding: utf-8 -*-
 """
 文件名：app_ui_deploy.py
-状态：部署专用版 (单体架构，无需启动 FastAPI 后端)
+状态：最终修复版 (含自动密钥 + 手动纠错 + 聊天同步 + 矮人工匠动画)
 """
 import streamlit as st
 import pandas as pd
@@ -10,15 +9,15 @@ import os
 import sys
 import tempfile
 import json
+import time
 from dotenv import load_dotenv
 
 # 加载环境变量
 load_dotenv()
 
 # ==========================================
-# 1. 核心逻辑直接导入 (不再走 HTTP 请求)
+# 1. 核心逻辑直接导入
 # ==========================================
-# 确保能找到本地模块
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.append(current_dir)
@@ -34,36 +33,32 @@ except ImportError as e:
     st.stop()
 
 # ==========================================
-# 2. 页面配置
+# 2. 页面配置 & 密钥自动加载
 # ==========================================
 st.set_page_config(page_title="AI 雪板鉴定 Pro", page_icon="🏂", layout="wide")
 
 st.title("🏂 AI 二手雪板智能定价系统 (Online Demo)")
-st.info("💡 这是一个在线演示版本，数据存储在内存中，刷新页面会重置。")
+st.caption("💡 这是一个在线演示版本，支持 AI 视觉鉴定、价格计算及多轮对话。")
 
-# 侧边栏：自动加载配置
 with st.sidebar:
     st.title("🔧 配置")
-
-    # 1. 优先尝试从 Streamlit Secrets 读取 Key
+    # 自动加载 Secrets
     if "DASHSCOPE_API_KEY" in st.secrets:
         st.success("✅ 云端密钥已自动加载")
         api_key = st.secrets["DASHSCOPE_API_KEY"]
-    # 2. 如果本地运行有环境变量，也可以读取
     elif os.getenv("DASHSCOPE_API_KEY"):
         st.success("✅ 本地环境变量已加载")
         api_key = os.getenv("DASHSCOPE_API_KEY")
-    # 3. 如果都没有，才显示输入框 (兜底方案)
     else:
         api_key = st.text_input("请输入阿里云 DashScope API Key", type="password")
         if not api_key:
-            st.warning("⚠️ 未检测到配置，请输入 Key 继续")
+            st.warning("⚠️ 请输入 Key 继续")
             st.stop()
 
-    # 将获取到的 Key 设置为环境变量，供其他模块调用
     os.environ["DASHSCOPE_API_KEY"] = api_key
-    os.environ["SNOWBOARD_API_KEYS"] = api_key  # 兼容旧代码逻辑
-# 初始化 Session State
+    os.environ["SNOWBOARD_API_KEYS"] = api_key
+
+# 初始化状态
 if "current_data" not in st.session_state:
     st.session_state.current_data = None
 if "chat_history" not in st.session_state:
@@ -75,7 +70,7 @@ if "chat_history" not in st.session_state:
 tab1, tab2 = st.tabs(["📷 鉴定与咨询", "ℹ️ 关于项目"])
 
 with tab1:
-    # --- 上传区 ---
+    # --- A. 上传区 (无数据时显示) ---
     if not st.session_state.current_data:
         st.markdown("### 1️⃣ 上传照片")
         user_hint = st.text_input("💡 (选填) 线索提示", placeholder="例如：Gray Desperado...")
@@ -83,79 +78,272 @@ with tab1:
 
         if st.button("🚀 开始分析", type="primary"):
             if uploaded_files:
-                with st.spinner('🤖 AI 正在云端分析 (可能需要十几秒)...'):
-                    try:
-                        # 1. 处理图片
-                        analysis_results = []
-                        for uploaded_file in uploaded_files:
-                            # Streamlit Cloud 处理临时文件的方式
-                            suffix = os.path.splitext(uploaded_file.name)[1]
-                            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                                tmp.write(uploaded_file.read())
-                                temp_path = tmp.name
 
-                            try:
-                                # 直接调用视觉函数
-                                res = analyze_snowboard_image(temp_path, user_hint=user_hint)
-                                analysis_results.append(res)
-                            finally:
-                                os.remove(temp_path)
+                # ==================================================
+                # 🎬 动画代码开始
+                # ==================================================
+                loading_placeholder = st.empty()
 
-                        # 2. 逻辑计算
-                        if analysis_results:
-                            final_analysis = merge_analysis_results(analysis_results)
-                            price_result = estimate_secondhand_price(final_analysis)
+                # 定义 CSS 动画和 HTML 结构
+                loading_html = """
+                <style>
+                    /* 1. 全屏遮罩：毛玻璃效果 */
+                    .loading-overlay {
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100vw;
+                        height: 100vh;
+                        background: rgba(20, 20, 20, 0.6);
+                        backdrop-filter: blur(12px); /* 核心：背景模糊 */
+                        -webkit-backdrop-filter: blur(12px);
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        z-index: 99999;
+                        color: #ffffff;
+                        font-family: sans-serif;
+                    }
 
-                            p_low = price_result.get("price_low", 0)
-                            p_high = price_result.get("price_high", 0)
+                    /* 2. 动画舞台 */
+                    .stage-container {
+                        position: relative;
+                        width: 280px;
+                        height: 280px;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                    }
 
-                            expert_comment = generate_expert_review(
-                                brand=final_analysis.get("brand"),
-                                model=final_analysis.get("possible_model"),
-                                condition_score=final_analysis.get("condition_score"),
-                                price_low=p_low, price_high=p_high,
-                                base_damage=final_analysis.get("base_damage"),
-                                edge_damage=final_analysis.get("edge_damage")
-                            )
+                    /* 3. 中心物体：雪板 (静止) */
+                    .center-obj {
+                        position: absolute;
+                        width: 80px;
+                        z-index: 10;
+                        /* 👇 请替换为你生成的雪板透明 PNG */
+                        content: url('https://img.icons8.com/external-flaticons-lineal-color-flat-icons/256/external-snowboard-winter-ski-resort-flaticons-lineal-color-flat-icons.png');
+                    }
 
-                            # 存入 Session
-                            st.session_state.current_data = {
-                                "suggest_price": int((p_low + p_high) / 2),
-                                "price_low": p_low,
-                                "price_high": p_high,
-                                "expert_review": expert_comment,
-                                "brand": final_analysis.get("brand"),
-                                "model": final_analysis.get("possible_model"),
-                                "condition_score": final_analysis.get("condition_score"),
-                                "base_damage": final_analysis.get("base_damage"),
-                                "calculation_process": price_result.get("calculation_process", [])
-                            }
-                            st.rerun()
-                        else:
-                            st.error("未能识别图片内容")
+                    /* 4. 轨道容器：负责整体旋转 */
+                    .orbit-container {
+                        position: absolute;
+                        width: 100%;
+                        height: 100%;
+                        z-index: 20;
+                        animation: orbit-spin 6s linear infinite; /* 6秒转一圈 */
+                    }
 
-                    except Exception as e:
-                        st.error(f"运行出错: {e}")
+                    /* 5. 矮人工匠：负责反向自转 (保持直立) */
+                    .dwarf-artisan {
+                        position: absolute;
+                        top: 0;
+                        left: 50%;
+                        width: 100px; /* 调整工匠大小 */
+                        margin-left: -50px; /* 居中校正 */
+                        margin-top: -20px;
 
-    # --- 结果展示区 ---
+                        /* 核心：反向旋转抵消轨道的转动，让人看起来始终头朝上 */
+                        animation: counter-spin 6s linear infinite; 
+
+                        /* 👇 请替换为你生成的矮人透明 PNG */
+                        content: url('https://img.icons8.com/color/256/gimli.png'); 
+                    }
+
+                    /* 6. 文字提示 */
+                    .loading-text {
+                        margin-top: 40px;
+                        font-size: 1.5rem;
+                        font-weight: bold;
+                        letter-spacing: 1px;
+                        animation: pulse 1.5s infinite;
+                        text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+                    }
+
+                    .sub-text {
+                        margin-top: 10px;
+                        font-size: 0.9rem;
+                        color: #cccccc;
+                    }
+
+                    /* --- 关键帧定义 --- */
+                    @keyframes orbit-spin {
+                        from { transform: rotate(0deg); }
+                        to { transform: rotate(360deg); }
+                    }
+
+                    @keyframes counter-spin {
+                        from { transform: rotate(0deg); }
+                        to { transform: rotate(-360deg); } /* 反向转，保持直立 */
+                    }
+
+                    @keyframes pulse {
+                        0% { opacity: 0.6; }
+                        50% { opacity: 1; }
+                        100% { opacity: 0.6; }
+                    }
+                </style>
+
+                <div class="loading-overlay">
+                    <div class="stage-container">
+                        <img class="center-obj">
+                        <div class="orbit-container">
+                            <img class="dwarf-artisan">
+                        </div>
+                    </div>
+                    <div class="loading-text">⚒️ 矮人宗师正在鉴定...</div>
+                    <div class="sub-text">AI 视觉引擎正在云端分析板面纹理</div>
+                </div>
+                """
+
+                # 渲染动画
+                loading_placeholder.markdown(loading_html, unsafe_allow_html=True)
+                # ==================================================
+                # 🎬 动画代码结束
+                # ==================================================
+
+                try:
+                    # 1. 视觉分析
+                    analysis_results = []
+                    for uploaded_file in uploaded_files:
+                        suffix = os.path.splitext(uploaded_file.name)[1]
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                            tmp.write(uploaded_file.read())
+                            temp_path = tmp.name
+                        try:
+                            res = analyze_snowboard_image(temp_path, user_hint=user_hint)
+                            analysis_results.append(res)
+                        finally:
+                            os.remove(temp_path)
+
+                    # 2. 逻辑计算
+                    if analysis_results:
+                        final_analysis = merge_analysis_results(analysis_results)
+                        price_result = estimate_secondhand_price(final_analysis)
+
+                        p_low = price_result.get("price_low", 0)
+                        p_high = price_result.get("price_high", 0)
+
+                        expert_comment = generate_expert_review(
+                            brand=final_analysis.get("brand"),
+                            model=final_analysis.get("possible_model"),
+                            condition_score=final_analysis.get("condition_score"),
+                            price_low=p_low, price_high=p_high,
+                            base_damage=final_analysis.get("base_damage"),
+                            edge_damage=final_analysis.get("edge_damage")
+                        )
+
+                        # 存入 Session
+                        st.session_state.current_data = {
+                            "suggest_price": int((p_low + p_high) / 2),
+                            "price_low": p_low,
+                            "price_high": p_high,
+                            "expert_review": expert_comment,
+                            "brand": final_analysis.get("brand"),
+                            "model": final_analysis.get("possible_model"),
+                            "condition_score": final_analysis.get("condition_score"),
+                            "base_damage": final_analysis.get("base_damage"),
+                            "edge_damage": final_analysis.get("edge_damage"),
+                            "calculation_process": price_result.get("calculation_process", [])
+                        }
+
+                        # ✅ 分析完成，清空动画
+                        loading_placeholder.empty()
+                        st.rerun()
+                    else:
+                        loading_placeholder.empty()
+                        st.error("未能识别图片内容")
+
+                except Exception as e:
+                    # ❌ 出错也要清空动画，否则用户会卡在遮罩里
+                    loading_placeholder.empty()
+                    st.error(f"运行出错: {e}")
+
+    # --- B. 结果展示 & 交互区 (有数据时显示) ---
     else:
         data = st.session_state.current_data
 
-        if st.button("⬅️ 测下一块"):
-            st.session_state.current_data = None
-            st.session_state.chat_history = []
-            st.rerun()
+        # 顶部导航栏
+        col_back, col_space = st.columns([1, 5])
+        with col_back:
+            if st.button("⬅️ 测下一块"):
+                st.session_state.current_data = None
+                st.session_state.chat_history = []
+                st.rerun()
 
         st.divider()
         st.success("✅ 鉴定完成")
+
+        # 1. 价格看板
         c1, c2, c3 = st.columns(3)
-        c1.metric("📉 最低", f"¥{data['price_low']}")
-        c2.metric("🏷️ 均价", f"¥{data['suggest_price']}")
-        c3.metric("📈 最高", f"¥{data['price_high']}")
+        c1.metric("📉 最低", f"¥{data.get('price_low', 0)}")
+        c2.metric("🏷️ 均价", f"¥{data.get('suggest_price', 0)}")
+        c3.metric("📈 最高", f"¥{data.get('price_high', 0)}")
 
-        st.info(f"🗣️ **专家点评**：{data['expert_review']}")
+        st.info(f"🗣️ **专家点评**：{data.get('expert_review', '暂无')}")
 
-        # 聊天区
+        # ==========================================
+        # 🔥 手动纠错区域
+        # ==========================================
+        st.markdown("---")
+        with st.expander("🛠️ 识别错了？点这里修正品牌/型号", expanded=False):
+            with st.form("fix_form"):
+                col_a, col_b, col_c = st.columns(3)
+                new_brand = col_a.text_input("品牌", value=data.get('brand', ''))
+                new_model = col_b.text_input("型号", value=data.get('model', ''))
+                new_score = col_c.slider("成色", 1.0, 10.0, float(data.get('condition_score', 8.0)))
+
+                if st.form_submit_button("🔄 修正并重新估价"):
+                    with st.spinner("正在基于新数据重新计算..."):
+                        try:
+                            # 1. 构造新的分析数据
+                            new_analysis = {
+                                "brand": new_brand,
+                                "possible_model": new_model,
+                                "condition_score": new_score,
+                                "can_use": True,
+                                "base_damage": data.get("base_damage", "用户修正"),
+                                "edge_damage": data.get("edge_damage", "用户修正"),
+                                "is_old_model": False
+                            }
+
+                            # 2. 调用定价引擎重算
+                            new_price_res = estimate_secondhand_price(new_analysis)
+                            p_low = new_price_res.get("price_low", 0)
+                            p_high = new_price_res.get("price_high", 0)
+
+                            # 3. 重新生成点评
+                            new_review = generate_expert_review(
+                                brand=new_brand,
+                                model=new_model,
+                                condition_score=new_score,
+                                price_low=p_low, price_high=p_high,
+                                base_damage=data.get("base_damage"),
+                                edge_damage=data.get("edge_damage")
+                            )
+
+                            # 4. 更新 Session State
+                            st.session_state.current_data.update({
+                                "brand": new_brand,
+                                "model": new_model,
+                                "condition_score": new_score,
+                                "price_low": p_low,
+                                "price_high": p_high,
+                                "suggest_price": int((p_low + p_high) / 2),
+                                "expert_review": new_review,
+                                "calculation_process": new_price_res.get("calculation_process", [])
+                            })
+
+                            # 5. 清空聊天记录
+                            st.session_state.chat_history = []
+                            st.toast("数据已修正，AI 记忆已更新！", icon="✅")
+                            time.sleep(1)
+                            st.rerun()
+
+                        except Exception as e:
+                            st.error(f"修正失败: {e}")
+
+        # 3. 聊天互动区
         st.divider()
         st.subheader("💬 咨询专家")
 
@@ -170,7 +358,7 @@ with tab1:
 
             with st.chat_message("assistant"):
                 with st.spinner("思考中..."):
-                    # 直接调用 Chat Service
+                    # 把更新后的 data 传给 Chat Service
                     ans = get_follow_up_answer(prompt, data)
                     st.write(ans)
                     st.session_state.chat_history.append({"role": "assistant", "content": ans})
@@ -179,7 +367,4 @@ with tab2:
     st.markdown("""
     ### 👨‍💻 关于这个项目
     这是一个基于 **LangChain + Qwen-VL** 的多模态 AI 应用。
-    * **视觉层**: 识别雪板品牌、划痕、成色。
-    * **逻辑层**: 基于市场数据的定价引擎。
-    * **交互层**: 具备领域知识的 AI 问答助手。
     """)
