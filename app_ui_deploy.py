@@ -41,19 +41,28 @@ st.set_page_config(page_title="AI 雪板鉴定 Pro", page_icon="🏂", layout="w
 st.title("🏂 AI 二手雪板智能定价系统 (Online Demo)")
 st.info("💡 这是一个在线演示版本，数据存储在内存中，刷新页面会重置。")
 
-# 侧边栏：输入 API Key (为了安全，不把 Key 写死在代码里)
+# 侧边栏：自动加载配置
 with st.sidebar:
     st.title("🔧 配置")
-    # 让面试官输入 Key，或者你可以后面在云端后台配置 Secrets
-    user_api_key = st.text_input("请输入阿里云 DashScope API Key", type="password")
-    if not user_api_key:
-        st.warning("请先输入 API Key 才能使用功能。")
-        st.stop()
-    else:
-        # 临时设置环境变量
-        os.environ["DASHSCOPE_API_KEY"] = user_api_key
-        os.environ["SNOWBOARD_API_KEYS"] = user_api_key
 
+    # 1. 优先尝试从 Streamlit Secrets 读取 Key
+    if "DASHSCOPE_API_KEY" in st.secrets:
+        st.success("✅ 云端密钥已自动加载")
+        api_key = st.secrets["DASHSCOPE_API_KEY"]
+    # 2. 如果本地运行有环境变量，也可以读取
+    elif os.getenv("DASHSCOPE_API_KEY"):
+        st.success("✅ 本地环境变量已加载")
+        api_key = os.getenv("DASHSCOPE_API_KEY")
+    # 3. 如果都没有，才显示输入框 (兜底方案)
+    else:
+        api_key = st.text_input("请输入阿里云 DashScope API Key", type="password")
+        if not api_key:
+            st.warning("⚠️ 未检测到配置，请输入 Key 继续")
+            st.stop()
+
+    # 将获取到的 Key 设置为环境变量，供其他模块调用
+    os.environ["DASHSCOPE_API_KEY"] = api_key
+    os.environ["SNOWBOARD_API_KEYS"] = api_key  # 兼容旧代码逻辑
 # 初始化 Session State
 if "current_data" not in st.session_state:
     st.session_state.current_data = None
