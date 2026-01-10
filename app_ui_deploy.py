@@ -82,119 +82,137 @@ with tab1:
                 # ==================================================
                 # 🎬 动画代码开始
                 # ==================================================
+                # ==================================================
+                # 🎬 动画代码开始 (升级版：暗色磨砂弹窗)
+                # ==================================================
                 loading_placeholder = st.empty()
 
                 # 定义 CSS 动画和 HTML 结构
                 loading_html = """
-                <style>
-                    /* 1. 全屏遮罩：毛玻璃效果 */
-                    .loading-overlay {
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        width: 100vw;
-                        height: 100vh;
-                        background: rgba(20, 20, 20, 0.6);
-                        backdrop-filter: blur(12px); /* 核心：背景模糊 */
-                        -webkit-backdrop-filter: blur(12px);
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
-                        align-items: center;
-                        z-index: 99999;
-                        color: #ffffff;
-                        font-family: sans-serif;
-                    }
+                                <style>
+                                    /* 1. 全屏遮罩：只负责变暗，锁住背景 */
+                                    .loading-overlay {
+                                        position: fixed;
+                                        top: 0;
+                                        left: 0;
+                                        width: 100vw;
+                                        height: 100vh;
+                                        background: rgba(0, 0, 0, 0.3); /* 轻微变暗 */
+                                        display: flex;
+                                        justify-content: center;
+                                        align-items: center; /* 垂直水平居中 */
+                                        z-index: 99999;
+                                    }
 
-                    /* 2. 动画舞台 */
-                    .stage-container {
-                        position: relative;
-                        width: 280px;
-                        height: 280px;
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                    }
+                                    /* 2. 核心弹窗：占屏幕约 1/3，高级毛玻璃 */
+                                    .glass-card {
+                                        position: relative;
+                                        width: 35vw;             /* 宽度占视口的 35% */
+                                        min-width: 320px;        /* 手机端最小宽度 */
+                                        max-width: 500px;        /* 桌面端最大宽度 */
+                                        padding: 40px 20px;      /* 内部留白 */
 
-                    /* 3. 中心物体：雪板 (静止) */
-                    .center-obj {
-                        position: absolute;
-                        width: 80px;
-                        z-index: 10;
-                        /* 👇 请替换为你生成的雪板透明 PNG */
-                        content: url('https://raw.githubusercontent.com/XIAOHAY/Snowboard-AI-Pricing/main/img/snowboard.png');
-                    }
+                                        /* 🔥 核心：暗色磨砂玻璃质感 */
+                                        background: rgba(30, 30, 30, 0.75); /* 深灰半透明 */
+                                        backdrop-filter: blur(20px);        /* 强力模糊背景 */
+                                        -webkit-backdrop-filter: blur(20px);
 
-                    /* 4. 轨道容器：负责整体旋转 */
-                    .orbit-container {
-                        position: absolute;
-                        width: 100%;
-                        height: 100%;
-                        z-index: 20;
-                        animation: orbit-spin 6s linear infinite; /* 6秒转一圈 */
-                    }
+                                        border: 1px solid rgba(255, 255, 255, 0.2); /* 亮色边框增强玻璃感 */
+                                        border-radius: 20px;     /* 圆角 */
+                                        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4); /* 浮起阴影 */
 
-                    /* 5. 矮人工匠：负责反向自转 (保持直立) */
-                    .dwarf-artisan {
-                        position: absolute;
-                        top: 0;
-                        left: 50%;
-                        width: 100px; /* 调整工匠大小 */
-                        margin-left: -50px; /* 居中校正 */
-                        margin-top: -20px;
+                                        display: flex;
+                                        flex-direction: column;
+                                        align-items: center;
+                                        color: #ffffff;
+                                        font-family: sans-serif;
+                                        text-align: center;
+                                    }
 
-                        /* 核心：反向旋转抵消轨道的转动，让人看起来始终头朝上 */
-                        animation: counter-spin 6s linear infinite; 
+                                    /* 3. 动画舞台 */
+                                    .stage-container {
+                                        position: relative;
+                                        width: 220px;  /* 稍微缩小舞台以适应弹窗 */
+                                        height: 220px;
+                                        display: flex;
+                                        justify-content: center;
+                                        align-items: center;
+                                        margin-bottom: 20px;
+                                    }
 
-                        /* 👇 请替换为你生成的矮人透明 PNG */
-                        content: url('https://raw.githubusercontent.com/XIAOHAY/Snowboard-AI-Pricing/main/img/dwarf.png'); 
-                    }
+                                    /* 4. 中心物体：雪板 (静止) */
+                                    .center-obj {
+                                        position: absolute;
+                                        width: 70px; /* 稍微缩小 */
+                                        z-index: 10;
+                                        /* 👇 替换为你的 GitHub Raw 链接 */
+                                        content: url('https://raw.githubusercontent.com/XIAOHAY/Snowboard-AI-Pricing/main/img/snowboard.png');
+                                    }
 
-                    /* 6. 文字提示 */
-                    .loading-text {
-                        margin-top: 40px;
-                        font-size: 1.5rem;
-                        font-weight: bold;
-                        letter-spacing: 1px;
-                        animation: pulse 1.5s infinite;
-                        text-shadow: 0 2px 10px rgba(0,0,0,0.5);
-                    }
+                                    /* 5. 轨道容器 */
+                                    .orbit-container {
+                                        position: absolute;
+                                        width: 100%;
+                                        height: 100%;
+                                        z-index: 20;
+                                        animation: orbit-spin 6s linear infinite;
+                                    }
 
-                    .sub-text {
-                        margin-top: 10px;
-                        font-size: 0.9rem;
-                        color: #cccccc;
-                    }
+                                    /* 6. 矮人工匠 */
+                                    .dwarf-artisan {
+                                        position: absolute;
+                                        top: 0;
+                                        left: 50%;
+                                        width: 90px;
+                                        margin-left: -45px; /* 居中校正 */
+                                        margin-top: -15px;
 
-                    /* --- 关键帧定义 --- */
-                    @keyframes orbit-spin {
-                        from { transform: rotate(0deg); }
-                        to { transform: rotate(360deg); }
-                    }
+                                        animation: counter-spin 6s linear infinite; 
 
-                    @keyframes counter-spin {
-                        from { transform: rotate(0deg); }
-                        to { transform: rotate(-360deg); } /* 反向转，保持直立 */
-                    }
+                                        /* 👇 替换为你的 GitHub Raw 链接 */
+                                        content: url('https://raw.githubusercontent.com/XIAOHAY/Snowboard-AI-Pricing/main/img/dwarf.png'); 
+                                    }
 
-                    @keyframes pulse {
-                        0% { opacity: 0.6; }
-                        50% { opacity: 1; }
-                        100% { opacity: 0.6; }
-                    }
-                </style>
+                                    /* 7. 文字提示 */
+                                    .loading-text {
+                                        font-size: 1.4rem;
+                                        font-weight: bold;
+                                        letter-spacing: 1px;
+                                        margin-bottom: 8px;
+                                        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+                                    }
 
-                <div class="loading-overlay">
-                    <div class="stage-container">
-                        <img class="center-obj">
-                        <div class="orbit-container">
-                            <img class="dwarf-artisan">
-                        </div>
-                    </div>
-                    <div class="loading-text">⚒️ 矮人宗师正在鉴定...</div>
-                    <div class="sub-text">AI 视觉引擎正在云端分析板面纹理</div>
-                </div>
-                """
+                                    .sub-text {
+                                        font-size: 0.9rem;
+                                        color: #dddddd; /* 稍微灰一点的白 */
+                                        line-height: 1.4;
+                                    }
+
+                                    /* --- 关键帧保持不变 --- */
+                                    @keyframes orbit-spin {
+                                        from { transform: rotate(0deg); }
+                                        to { transform: rotate(360deg); }
+                                    }
+
+                                    @keyframes counter-spin {
+                                        from { transform: rotate(0deg); }
+                                        to { transform: rotate(-360deg); }
+                                    }
+                                </style>
+
+                                <div class="loading-overlay">
+                                    <div class="glass-card">
+                                        <div class="stage-container">
+                                            <img class="center-obj">
+                                            <div class="orbit-container">
+                                                <img class="dwarf-artisan">
+                                            </div>
+                                        </div>
+                                        <div class="loading-text">⚒️ 宗师鉴定中...</div>
+                                        <div class="sub-text">AI 正在云端比对全球市场数据<br>请稍候片刻</div>
+                                    </div>
+                                </div>
+                                """
 
                 # 渲染动画
                 loading_placeholder.markdown(loading_html, unsafe_allow_html=True)
