@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 文件名：app_ui_deploy.py
-状态：最终演示版 (含自动密钥 + 手动纠错 + 聊天同步 + 矮人工匠动画 + 预设演示案例)
+状态：最终完整版 (两列布局 + 多图演示 + 结果回显 + 自动定价修正)
 """
 import streamlit as st
 import pandas as pd
@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ==========================================
-# 1. 核心逻辑直接导入
+# 1. 核心逻辑导入
 # ==========================================
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
@@ -37,7 +37,7 @@ except ImportError as e:
 # ==========================================
 st.set_page_config(page_title="AI 雪板鉴定 Pro", page_icon="🏂", layout="wide")
 
-st.title("🏂 AI 二手雪板智能定价系统 (Demo)")
+st.title("🏂 AI 二手雪板智能定价系统 (Online Demo)")
 st.caption("💡 这是一个在线演示版本，支持 AI 视觉鉴定、价格计算及多轮对话。")
 
 with st.sidebar:
@@ -65,161 +65,177 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 # ==========================================
-# 3. 定义通用的加载动画 HTML (复用)
+# 3. 定义加载动画 HTML
 # ==========================================
 LOADING_HTML = """
 <style>
-    /* 1. 全屏遮罩 */
     .loading-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0, 0, 0, 0.4);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 99999;
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0, 0, 0, 0.4); display: flex; justify-content: center; align-items: center; z-index: 99999;
     }
-
-    /* 2. 核心弹窗 */
     .glass-card {
-        position: relative;
-        width: 35vw;
-        min-width: 320px;
-        max-width: 500px;
-        padding: 40px 20px;
-        background: rgba(30, 30, 30, 0.85); 
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 20px;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        color: #ffffff;
-        font-family: sans-serif;
-        text-align: center;
+        position: relative; width: 35vw; min-width: 320px; max-width: 500px; padding: 40px 20px;
+        background: rgba(30, 30, 30, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 20px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        display: flex; flex-direction: column; align-items: center; color: #ffffff; font-family: sans-serif; text-align: center;
     }
-
-    /* 3. 动画舞台 */
-    .stage-container {
-        position: relative;
-        width: 270px;
-        height: 370px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin-bottom: 20px;
-    }
-
-    /* 4. 中心物体：雪板 */
-    .center-obj {
-        position: absolute;
-        width: 110px;
-        z-index: 10;
-        content: url('https://raw.githubusercontent.com/XIAOHAY/Snowboard-AI-Pricing/main/img/snowboard.png');
-    }
-
-    /* 5. 轨道容器 */
-    .orbit-container {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        z-index: 20;
-        will-change: transform;
-        transform: translateZ(0); 
-        animation: orbit-spin 5s linear infinite;
-    }
-
-    /* 6. 矮人工匠 */
-    .dwarf-artisan {
-        position: absolute;
-        top: 15px;
-        left: 50%;
-        width: 80px; 
-        margin-left: -40px; 
-        will-change: transform;
-        transform: translateZ(0);
-        backface-visibility: hidden;
-        animation: counter-spin 5s linear infinite;
-        content: url('https://raw.githubusercontent.com/XIAOHAY/Snowboard-AI-Pricing/main/img/dwarf.png'); 
-    }
-
-    /* 7. 文字 */
-    .loading-text {
-        font-size: 1.4rem;
-        font-weight: bold;
-        letter-spacing: 1px;
-        margin-bottom: 8px;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-    }
-    .sub-text {
-        font-size: 0.9rem;
-        color: #dddddd;
-        line-height: 1.4;
-    }
-
+    .stage-container { position: relative; width: 270px; height: 370px; display: flex; justify-content: center; align-items: center; margin-bottom: 20px; }
+    .center-obj { position: absolute; width: 110px; z-index: 10; content: url('https://raw.githubusercontent.com/XIAOHAY/Snowboard-AI-Pricing/main/img/snowboard.png'); }
+    .orbit-container { position: absolute; width: 100%; height: 100%; z-index: 20; will-change: transform; transform: translateZ(0); animation: orbit-spin 5s linear infinite; }
+    .dwarf-artisan { position: absolute; top: 15px; left: 50%; width: 80px; margin-left: -40px; will-change: transform; transform: translateZ(0); backface-visibility: hidden; animation: counter-spin 5s linear infinite; content: url('https://raw.githubusercontent.com/XIAOHAY/Snowboard-AI-Pricing/main/img/dwarf.png'); }
+    .loading-text { font-size: 1.4rem; font-weight: bold; letter-spacing: 1px; margin-bottom: 8px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+    .sub-text { font-size: 0.9rem; color: #dddddd; line-height: 1.4; }
     @keyframes orbit-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     @keyframes counter-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(-360deg); } }
 </style>
-
 <div class="loading-overlay">
     <div class="glass-card">
-        <div class="stage-container">
-            <img class="center-obj">
-            <div class="orbit-container">
-                <img class="dwarf-artisan">
-            </div>
-        </div>
+        <div class="stage-container"><img class="center-obj"><div class="orbit-container"><img class="dwarf-artisan"></div></div>
         <div class="loading-text">⚒️ 宗师鉴定中...</div>
-        <div class="sub-text">AI 正在云端比对全球市场数据<br>请稍候片刻</div>
+        <div class="sub-text">AI 正在进行多模态融合分析<br>请稍候片刻</div>
     </div>
 </div>
 """
 
 # ==========================================
-# 4. 核心功能区
+# 4. 核心页面逻辑
 # ==========================================
 tab1, tab2 = st.tabs(["📷 鉴定与咨询", "ℹ️ 关于项目"])
 
 with tab1:
     loading_placeholder = st.empty()
 
-    # --- A. 上传区 (无数据时显示) ---
+    # --- A. 输入区 (无数据时显示) ---
     if not st.session_state.current_data:
-        st.markdown("### 1️⃣ 上传照片")
-        user_hint = st.text_input("💡 (选填) 线索提示", placeholder="例如：Gray Desperado...")
-        uploaded_files = st.file_uploader("上传图片", type=['jpg', 'png'], accept_multiple_files=True)
 
-        if st.button("🚀 开始分析", type="primary"):
-            if uploaded_files:
-                # 播放动画
+        # 🔥 采用两列布局：左侧上传，右侧演示
+        col_upload, col_demo = st.columns([1, 1], gap="large")
+
+        # -------------------------------------------------------
+        # 左侧：用户上传
+        # -------------------------------------------------------
+        with col_upload:
+            st.subheader("📤 上传照片")
+            st.caption("已有照片？直接上传体验 AI 鉴定。")
+            user_hint = st.text_input("💡 (选填) 线索提示", placeholder="例如：Gray Desperado...")
+            uploaded_files = st.file_uploader("点击或拖拽上传", type=['jpg', 'png'], accept_multiple_files=True)
+
+            if st.button("🚀 开始分析", type="primary", use_container_width=True):
+                if uploaded_files:
+                    loading_placeholder.markdown(LOADING_HTML, unsafe_allow_html=True)
+                    try:
+                        # 1. 视觉分析
+                        analysis_results = []
+                        for uploaded_file in uploaded_files:
+                            suffix = os.path.splitext(uploaded_file.name)[1]
+                            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                                tmp.write(uploaded_file.read())
+                                temp_path = tmp.name
+                            try:
+                                res = analyze_snowboard_image(temp_path, user_hint=user_hint)
+                                analysis_results.append(res)
+                            finally:
+                                os.remove(temp_path)
+
+                        # 2. 逻辑计算
+                        if analysis_results:
+                            final_analysis = merge_analysis_results(analysis_results)
+                            price_result = estimate_secondhand_price(final_analysis)
+                            p_low = price_result.get("price_low", 0)
+                            p_high = price_result.get("price_high", 0)
+                            expert_comment = generate_expert_review(
+                                brand=final_analysis.get("brand"),
+                                model=final_analysis.get("possible_model"),
+                                condition_score=final_analysis.get("condition_score"),
+                                price_low=p_low, price_high=p_high,
+                                base_damage=final_analysis.get("base_damage"),
+                                edge_damage=final_analysis.get("edge_damage")
+                            )
+
+                            st.session_state.current_data = {
+                                "suggest_price": int((p_low + p_high) / 2),
+                                "price_low": p_low,
+                                "price_high": p_high,
+                                "expert_review": expert_comment,
+                                "brand": final_analysis.get("brand"),
+                                "model": final_analysis.get("possible_model"),
+                                "condition_score": final_analysis.get("condition_score"),
+                                "base_damage": final_analysis.get("base_damage"),
+                                "edge_damage": final_analysis.get("edge_damage"),
+                                "calculation_process": price_result.get("calculation_process", [])
+                            }
+                            loading_placeholder.empty()
+                            st.rerun()
+                        else:
+                            loading_placeholder.empty()
+                            st.error("未能识别图片内容")
+                    except Exception as e:
+                        loading_placeholder.empty()
+                        st.error(f"运行出错: {e}")
+
+        # -------------------------------------------------------
+        # 右侧：一键演示 (多图版)
+        # -------------------------------------------------------
+        with col_demo:
+            st.subheader("⚡️ 一键体验")
+            st.caption("没有照片？点击下方案例，体验多视图融合分析。")
+
+            # 1. 定义演示配置 (3张图/案例)
+            DEMO_CASES = {
+                "demo_good": {
+                    "label": "✨ 挑战：热门保值神板",
+                    "paths": ["./examples/good_top.jpg", "./examples/good_base.jpg", "./examples/good_edge.jpg"],
+                    "desc": "Burton Custom (准新/三视图)",
+                    "force_brand": "BURTON", "force_model": "CUSTOM", "hint": "Burton Custom 2024"
+                },
+                "demo_bad": {
+                    "label": "🥊 挑战：识别严重损伤",
+                    "paths": ["./examples/bad_top.jpg", "./examples/bad_base.jpg", "./examples/bad_detail.jpg"],
+                    "desc": "板底严重划痕 (多角度)",
+                    "force_brand": "CAPITA", "force_model": "DOA", "hint": "Capita DOA, heavy scratch"
+                },
+                "demo_old": {
+                    "label": "🔍 鉴定日系老款",
+                    "paths": ["./examples/old_top.jpg", "./examples/old_base.jpg", "./examples/old_logo.jpg"],
+                    "desc": "Gray Desperado (老款)",
+                    "force_brand": "GRAY", "force_model": "DESPERADO (OLD)", "hint": "Gray Desperado Ti Type-R"
+                }
+            }
+
+
+            # 2. 演示运行函数
+            def run_demo_analysis(case_key):
+                cfg = DEMO_CASES[case_key]
+                image_paths = cfg["paths"]
+
+                # 展示底图
+                with st.container():
+                    st.markdown(f"### 🖼️ 正在分析：{cfg['desc']}")
+                    cols = st.columns(len(image_paths))
+                    for idx, col in enumerate(cols):
+                        with col:
+                            if os.path.exists(image_paths[idx]):
+                                st.image(image_paths[idx], caption=f"视图 {idx + 1}", use_column_width=True)
+                    st.info("⚡️ 演示模式：正在对 3 张视图进行【多模态融合分析】...")
+
                 loading_placeholder.markdown(LOADING_HTML, unsafe_allow_html=True)
-                try:
-                    # 1. 视觉分析
-                    analysis_results = []
-                    for uploaded_file in uploaded_files:
-                        suffix = os.path.splitext(uploaded_file.name)[1]
-                        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                            tmp.write(uploaded_file.read())
-                            temp_path = tmp.name
-                        try:
-                            res = analyze_snowboard_image(temp_path, user_hint=user_hint)
-                            analysis_results.append(res)
-                        finally:
-                            os.remove(temp_path)
 
-                    # 2. 逻辑计算
+                try:
+                    analysis_results = []
+                    # 循环分析每一张图
+                    for img_path in image_paths:
+                        if os.path.exists(img_path):
+                            res = analyze_snowboard_image(img_path, user_hint=cfg["hint"])
+                            # 🔥 强制修正品牌/型号 (保留 AI 的成色判断)
+                            res["brand"] = cfg["force_brand"]
+                            res["possible_model"] = cfg["force_model"]
+                            analysis_results.append(res)
+
                     if analysis_results:
                         final_analysis = merge_analysis_results(analysis_results)
                         price_result = estimate_secondhand_price(final_analysis)
-
                         p_low = price_result.get("price_low", 0)
                         p_high = price_result.get("price_high", 0)
-
                         expert_comment = generate_expert_review(
                             brand=final_analysis.get("brand"),
                             model=final_analysis.get("possible_model"),
@@ -228,8 +244,6 @@ with tab1:
                             base_damage=final_analysis.get("base_damage"),
                             edge_damage=final_analysis.get("edge_damage")
                         )
-
-                        # 存入 Session
                         st.session_state.current_data = {
                             "suggest_price": int((p_low + p_high) / 2),
                             "price_low": p_low,
@@ -240,140 +254,41 @@ with tab1:
                             "condition_score": final_analysis.get("condition_score"),
                             "base_damage": final_analysis.get("base_damage"),
                             "edge_damage": final_analysis.get("edge_damage"),
-                            "calculation_process": price_result.get("calculation_process", [])
+                            "calculation_process": price_result.get("calculation_process", []),
+                            "demo_image_paths": image_paths  # 👈 记录图片路径用于回显
                         }
                         loading_placeholder.empty()
                         st.rerun()
                     else:
                         loading_placeholder.empty()
-                        st.error("未能识别图片内容")
-
+                        st.error("未能加载演示图片，请检查文件路径")
                 except Exception as e:
                     loading_placeholder.empty()
-                    st.error(f"运行出错: {e}")
-
-        # ==========================================
-        # ⚡️ 演示案例区域 (新增)
-        # ==========================================
-        st.markdown("---")
-        st.markdown("### ⚡️ 没有照片？一键体验演示用例")
-        st.caption("点击下方按钮，体验 AI 对不同成色雪板的精准识别与定价。")
-
-        # 1. 定义演示配置字典
-        # 请确保你的项目根目录下有 examples 文件夹，并放入对应的图片
-        DEMO_CASES = {
-            "demo_good": {
-                "label": "✨ 挑战：热门保值神板",
-                "path": "./examples/sample_good.jpg",
-                "caption": "案例A: 准新 Burton Custom",
-                "force_brand": "BURTON",  # 强制修正品牌
-                "force_model": "CUSTOM",  # 强制修正型号
-                "hint": "Burton Custom 2024"  # 给 AI 的提示
-            },
-            "demo_bad": {
-                "label": "🥊 挑战：识别严重损伤",
-                "path": "./examples/sample_bad.jpg",
-                "caption": "案例B: 板底严重划痕",
-                "force_brand": "CAPITA",
-                "force_model": "DOA",
-                "hint": "Capita DOA, has heavy scratch"
-            },
-            "demo_old": {
-                "label": "🔍 挑战：鉴定日系老款",
-                "path": "./examples/sample_old.jpg",
-                "caption": "案例C: Gray 老款",
-                "force_brand": "GRAY",
-                "force_model": "DESPERADO (OLD)",
-                "hint": "Gray Desperado Ti Type-R"
-            }
-        }
+                    st.error(f"演示运行失败: {e}")
 
 
-        # 2. 定义演示运行函数
-        def run_demo_analysis(case_key):
-            cfg = DEMO_CASES[case_key]
-            image_path = cfg["path"]
+            # 3. 渲染按钮 (卡片式布局)
+            for key, cfg in DEMO_CASES.items():
+                # 检查第一张图是否存在，作为封面
+                cover_img = cfg["paths"][0]
+                if os.path.exists(cover_img):
+                    with st.container():
+                        c_img, c_btn = st.columns([1, 2])
+                        with c_img:
+                            st.image(cover_img, use_column_width=True)
+                        with c_btn:
+                            st.markdown(f"**{cfg['desc']}**")
+                            if st.button(cfg['label'], key=key, use_container_width=True):
+                                run_demo_analysis(key)
+                        st.divider()
+                else:
+                    st.warning(f"⚠️ 图片缺失: {cover_img} (请检查 examples 文件夹)")
 
-            # 播放动画
-            loading_placeholder.markdown(LOADING_HTML, unsafe_allow_html=True)
-
-            try:
-                # 调用 AI (真实分析损伤/成色)
-                res = analyze_snowboard_image(image_path, user_hint=cfg["hint"])
-
-                # 🔥 关键：强制修正品牌和型号 (Binding Logic)
-                # 这样即使 AI 没认出 Logo，定价逻辑也绝对准确
-                res["brand"] = cfg["force_brand"]
-                res["possible_model"] = cfg["force_model"]
-
-                # 后续流程完全复用
-                analysis_results = [res]
-
-                if analysis_results:
-                    final_analysis = merge_analysis_results(analysis_results)
-                    price_result = estimate_secondhand_price(final_analysis)
-
-                    p_low = price_result.get("price_low", 0)
-                    p_high = price_result.get("price_high", 0)
-
-                    expert_comment = generate_expert_review(
-                        brand=final_analysis.get("brand"),
-                        model=final_analysis.get("possible_model"),
-                        condition_score=final_analysis.get("condition_score"),
-                        price_low=p_low, price_high=p_high,
-                        base_damage=final_analysis.get("base_damage"),
-                        edge_damage=final_analysis.get("edge_damage")
-                    )
-
-                    st.session_state.current_data = {
-                        "suggest_price": int((p_low + p_high) / 2),
-                        "price_low": p_low,
-                        "price_high": p_high,
-                        "expert_review": expert_comment,
-                        "brand": final_analysis.get("brand"),
-                        "model": final_analysis.get("possible_model"),
-                        "condition_score": final_analysis.get("condition_score"),
-                        "base_damage": final_analysis.get("base_damage"),
-                        "edge_damage": final_analysis.get("edge_damage"),
-                        "calculation_process": price_result.get("calculation_process", []),
-                        # 记录演示图片路径，用于结果页回显
-                        "demo_image_path": image_path
-                    }
-                    loading_placeholder.empty()
-                    st.rerun()
-            except Exception as e:
-                loading_placeholder.empty()
-                st.error(f"演示案例运行失败: {e} (请检查 examples 文件夹下是否有对应图片)")
-
-
-        # 3. 渲染演示按钮
-        dc1, dc2, dc3 = st.columns(3)
-
-        # 只有当文件存在时才渲染，防止报错
-        if os.path.exists("./examples/sample_good.jpg"):
-            with dc1:
-                st.image(DEMO_CASES["demo_good"]["path"], use_column_width=True)
-                if st.button(DEMO_CASES["demo_good"]["label"], use_container_width=True):
-                    run_demo_analysis("demo_good")
-
-        if os.path.exists("./examples/sample_bad.jpg"):
-            with dc2:
-                st.image(DEMO_CASES["demo_bad"]["path"], use_column_width=True)
-                if st.button(DEMO_CASES["demo_bad"]["label"], use_container_width=True):
-                    run_demo_analysis("demo_bad")
-
-        if os.path.exists("./examples/sample_old.jpg"):
-            with dc3:
-                st.image(DEMO_CASES["demo_old"]["path"], use_column_width=True)
-                if st.button(DEMO_CASES["demo_old"]["label"], use_container_width=True):
-                    run_demo_analysis("demo_old")
-
-
-    # --- B. 结果展示 & 交互区 (有数据时显示) ---
+    # --- B. 结果展示区 (有数据时显示) ---
     else:
         data = st.session_state.current_data
 
-        # 顶部导航栏
+        # 顶部导航
         col_back, col_space = st.columns([1, 5])
         with col_back:
             if st.button("⬅️ 测下一块"):
@@ -384,17 +299,17 @@ with tab1:
         st.divider()
         st.success("✅ 鉴定完成")
 
-        # 🔥 如果是演示模式，回显原始图片方便对比
-        if "demo_image_path" in data:
-            with st.expander("📷 查看原始图片 (点击展开)", expanded=True):
-                c_img, c_info = st.columns([1, 2])
-                with c_img:
-                    st.image(data["demo_image_path"], use_column_width=True)
-                with c_info:
-                    st.markdown(f"**AI 识别重点：**\n\n"
-                                f"- 品牌：`{data.get('brand')}`\n"
-                                f"- 损伤检测：`{data.get('base_damage')}`\n"
-                                f"- 成色评分：`{data.get('condition_score')}`")
+        # 🔥 多图回显逻辑
+        if "demo_image_paths" in data:
+            with st.expander("📷 查看分析底图 (3视图)", expanded=True):
+                paths = data["demo_image_paths"]
+                cols = st.columns(len(paths))
+                for idx, col in enumerate(cols):
+                    with col:
+                        if os.path.exists(paths[idx]):
+                            st.image(paths[idx], use_column_width=True, caption=f"视图 {idx + 1}")
+                st.info(
+                    f"💡 **AI 综合分析结论：** 品牌锁定 `{data.get('brand')}` | 成色评分 `{data.get('condition_score')}` | 损伤检测 `{data.get('base_damage')}`")
 
         # 1. 价格看板
         c1, c2, c3 = st.columns(3)
@@ -404,9 +319,7 @@ with tab1:
 
         st.info(f"🗣️ **专家点评**：{data.get('expert_review', '暂无')}")
 
-        # ==========================================
-        # 🔥 手动纠错区域
-        # ==========================================
+        # 2. 手动纠错
         st.markdown("---")
         with st.expander("🛠️ 识别错了？点这里修正品牌/型号", expanded=False):
             with st.form("fix_form"):
@@ -416,59 +329,40 @@ with tab1:
                 new_score = col_c.slider("成色", 1.0, 10.0, float(data.get('condition_score', 8.0)))
 
                 if st.form_submit_button("🔄 修正并重新估价"):
-                    with st.spinner("正在基于新数据重新计算..."):
+                    with st.spinner("正在重算..."):
                         try:
-                            # 1. 构造新的分析数据
                             new_analysis = {
-                                "brand": new_brand,
-                                "possible_model": new_model,
-                                "condition_score": new_score,
-                                "can_use": True,
-                                "base_damage": data.get("base_damage", "用户修正"),
-                                "edge_damage": data.get("edge_damage", "用户修正"),
-                                "is_old_model": False
+                                "brand": new_brand, "possible_model": new_model, "condition_score": new_score,
+                                "can_use": True, "base_damage": data.get("base_damage", "用户修正"),
+                                "edge_damage": data.get("edge_damage", "用户修正"), "is_old_model": False
                             }
-
-                            # 2. 调用定价引擎重算
                             new_price_res = estimate_secondhand_price(new_analysis)
                             p_low = new_price_res.get("price_low", 0)
                             p_high = new_price_res.get("price_high", 0)
-
-                            # 3. 重新生成点评
                             new_review = generate_expert_review(
-                                brand=new_brand,
-                                model=new_model,
-                                condition_score=new_score,
+                                brand=new_brand, model=new_model, condition_score=new_score,
                                 price_low=p_low, price_high=p_high,
-                                base_damage=data.get("base_damage"),
-                                edge_damage=data.get("edge_damage")
+                                base_damage=data.get("base_damage"), edge_damage=data.get("edge_damage")
                             )
-
-                            # 4. 更新 Session State
-                            st.session_state.current_data.update({
-                                "brand": new_brand,
-                                "model": new_model,
-                                "condition_score": new_score,
-                                "price_low": p_low,
-                                "price_high": p_high,
+                            # 保持 demo_image_paths 不丢失
+                            updated_data = {
+                                "brand": new_brand, "model": new_model, "condition_score": new_score,
+                                "price_low": p_low, "price_high": p_high,
                                 "suggest_price": int((p_low + p_high) / 2),
                                 "expert_review": new_review,
                                 "calculation_process": new_price_res.get("calculation_process", [])
-                            })
-
-                            # 5. 清空聊天记录
+                            }
+                            st.session_state.current_data.update(updated_data)
                             st.session_state.chat_history = []
-                            st.toast("数据已修正，AI 记忆已更新！", icon="✅")
+                            st.toast("数据已修正！", icon="✅")
                             time.sleep(1)
                             st.rerun()
-
                         except Exception as e:
                             st.error(f"修正失败: {e}")
 
-        # 3. 聊天互动区
+        # 3. 聊天区
         st.divider()
         st.subheader("💬 咨询专家")
-
         for msg in st.session_state.chat_history:
             with st.chat_message(msg["role"]):
                 st.write(msg["content"])
@@ -477,16 +371,11 @@ with tab1:
             st.session_state.chat_history.append({"role": "user", "content": prompt})
             with st.chat_message("user"):
                 st.write(prompt)
-
             with st.chat_message("assistant"):
                 with st.spinner("思考中..."):
-                    # 把更新后的 data 传给 Chat Service
                     ans = get_follow_up_answer(prompt, data)
                     st.write(ans)
                     st.session_state.chat_history.append({"role": "assistant", "content": ans})
 
 with tab2:
-    st.markdown("""
-    ### 👨‍💻 关于这个项目
-    这是一个基于 **LangChain + Qwen-VL** 的多模态 AI 应用。
-    """)
+    st.markdown("### 👨‍💻 关于项目\n基于 LangChain + Qwen-VL 的多模态二手雪板定价系统。")
