@@ -185,8 +185,8 @@ with tab1:
                 "demo_good": {
                     "label": "✨ 挑战：热门保值神板",
                     "paths": ["./examples/good_top.jpg", "./examples/good_base.jpg", "./examples/good_edge.jpg"],
-                    "desc": "Burton Custom (准新/三视图)",
-                    "force_brand": "BURTON", "force_model": "Good Company龙年限定", "hint": "Burton Good Company龙年限定"
+                    "desc": "热门准新款",
+                    "force_brand": "BURTON", "force_model": "BURTON Good Company龙年限定", "hint": "Burton Good Company龙年限定"
                 },
                 "demo_bad": {
                     "label": "🥊 挑战：识别严重损伤",
