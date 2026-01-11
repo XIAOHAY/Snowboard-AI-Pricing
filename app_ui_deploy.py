@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 文件名：app_ui_deploy.py
-状态：最终修复版 (含自动密钥 + 手动纠错 + 聊天同步 + 矮人工匠动画)
+状态：最终演示版 (含自动密钥 + 手动纠错 + 聊天同步 + 矮人工匠动画 + 预设演示案例)
 """
 import streamlit as st
 import pandas as pd
@@ -37,7 +37,7 @@ except ImportError as e:
 # ==========================================
 st.set_page_config(page_title="AI 雪板鉴定 Pro", page_icon="🏂", layout="wide")
 
-st.title("🏂 AI 二手雪板智能定价系统 (Online Demo)")
+st.title("🏂 AI 二手雪板智能定价系统 (Demo)")
 st.caption("💡 这是一个在线演示版本，支持 AI 视觉鉴定、价格计算及多轮对话。")
 
 with st.sidebar:
@@ -65,11 +65,129 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 # ==========================================
-# 3. 核心功能区
+# 3. 定义通用的加载动画 HTML (复用)
+# ==========================================
+LOADING_HTML = """
+<style>
+    /* 1. 全屏遮罩 */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.4);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 99999;
+    }
+
+    /* 2. 核心弹窗 */
+    .glass-card {
+        position: relative;
+        width: 35vw;
+        min-width: 320px;
+        max-width: 500px;
+        padding: 40px 20px;
+        background: rgba(30, 30, 30, 0.85); 
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 20px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        color: #ffffff;
+        font-family: sans-serif;
+        text-align: center;
+    }
+
+    /* 3. 动画舞台 */
+    .stage-container {
+        position: relative;
+        width: 270px;
+        height: 370px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    /* 4. 中心物体：雪板 */
+    .center-obj {
+        position: absolute;
+        width: 110px;
+        z-index: 10;
+        content: url('https://raw.githubusercontent.com/XIAOHAY/Snowboard-AI-Pricing/main/img/snowboard.png');
+    }
+
+    /* 5. 轨道容器 */
+    .orbit-container {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        z-index: 20;
+        will-change: transform;
+        transform: translateZ(0); 
+        animation: orbit-spin 5s linear infinite;
+    }
+
+    /* 6. 矮人工匠 */
+    .dwarf-artisan {
+        position: absolute;
+        top: 15px;
+        left: 50%;
+        width: 80px; 
+        margin-left: -40px; 
+        will-change: transform;
+        transform: translateZ(0);
+        backface-visibility: hidden;
+        animation: counter-spin 5s linear infinite;
+        content: url('https://raw.githubusercontent.com/XIAOHAY/Snowboard-AI-Pricing/main/img/dwarf.png'); 
+    }
+
+    /* 7. 文字 */
+    .loading-text {
+        font-size: 1.4rem;
+        font-weight: bold;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+    .sub-text {
+        font-size: 0.9rem;
+        color: #dddddd;
+        line-height: 1.4;
+    }
+
+    @keyframes orbit-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    @keyframes counter-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(-360deg); } }
+</style>
+
+<div class="loading-overlay">
+    <div class="glass-card">
+        <div class="stage-container">
+            <img class="center-obj">
+            <div class="orbit-container">
+                <img class="dwarf-artisan">
+            </div>
+        </div>
+        <div class="loading-text">⚒️ 宗师鉴定中...</div>
+        <div class="sub-text">AI 正在云端比对全球市场数据<br>请稍候片刻</div>
+    </div>
+</div>
+"""
+
+# ==========================================
+# 4. 核心功能区
 # ==========================================
 tab1, tab2 = st.tabs(["📷 鉴定与咨询", "ℹ️ 关于项目"])
 
 with tab1:
+    loading_placeholder = st.empty()
+
     # --- A. 上传区 (无数据时显示) ---
     if not st.session_state.current_data:
         st.markdown("### 1️⃣ 上传照片")
@@ -78,158 +196,8 @@ with tab1:
 
         if st.button("🚀 开始分析", type="primary"):
             if uploaded_files:
-
-                # ==================================================
-                # 🎬 动画代码开始
-                # ==================================================
-                # ==================================================
-                # 🎬 动画代码开始 (升级版：暗色磨砂弹窗)
-                # ==================================================
-                loading_placeholder = st.empty()
-
-                # 定义 CSS 动画和 HTML 结构
-                loading_html = """
-                                <style>
-                                    /* 1. 全屏遮罩 */
-                                    .loading-overlay {
-                                        position: fixed;
-                                        top: 0;
-                                        left: 0;
-                                        width: 100vw;
-                                        height: 100vh;
-                                        background: rgba(0, 0, 0, 0.4);
-                                        display: flex;
-                                        justify-content: center;
-                                        align-items: center;
-                                        z-index: 99999;
-                                    }
-
-                                    /* 2. 核心弹窗 (性能优化版) */
-                                    .glass-card {
-                                        position: relative;
-                                        width: 35vw;
-                                        min-width: 320px;
-                                        max-width: 500px;
-                                        padding: 40px 20px;
-
-                                        /* 🎨 优化：稍微降低模糊度以提升 FPS */
-                                        background: rgba(30, 30, 30, 0.85); 
-                                        backdrop-filter: blur(12px);  /* 从 20px 降到 12px */
-                                        -webkit-backdrop-filter: blur(12px);
-
-                                        border: 1px solid rgba(255, 255, 255, 0.15);
-                                        border-radius: 20px;
-                                        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-
-                                        display: flex;
-                                        flex-direction: column;
-                                        align-items: center;
-                                        color: #ffffff;
-                                        font-family: sans-serif;
-                                        text-align: center;
-                                    }
-
-                                    /* 3. 动画舞台 */
-                                    .stage-container {
-                                        position: relative;
-                                        width: 270px;
-                                        height: 370px;
-                                        display: flex;
-                                        justify-content: center;
-                                        align-items: center;
-                                        margin-bottom: 20px;
-                                    }
-
-                                    /* 4. 中心物体：雪板 */
-                                    .center-obj {
-                                        position: absolute;
-                                        width: 110px;
-                                        z-index: 10;
-                                        /* 👇 你的 GitHub Raw 链接 */
-                                        content: url('https://raw.githubusercontent.com/XIAOHAY/Snowboard-AI-Pricing/main/img/snowboard.png');
-                                    }
-
-                                    /* 5. 轨道容器 (🚀 GPU 加速核心) */
-                                    .orbit-container {
-                                        position: absolute;
-                                        width: 100%;
-                                        height: 100%;
-                                        z-index: 20;
-
-                                        /* 🚀 性能优化关键指令 */
-                                        will-change: transform;
-                                        transform: translateZ(0); 
-
-                                        animation: orbit-spin 5s linear infinite; /* 稍微加快一点速度 (6s->5s) 也会感觉更流畅 */
-                                    }
-
-                                    /* 6. 矮人工匠 (🚀 GPU 加速核心) */
-                                    .dwarf-artisan {
-                                        position: absolute;
-                                        top: 15px;
-                                        left: 50%;
-                                        width: 80px; 
-                                        margin-left: -40px; 
-                                        margin-top: 0px;
-
-                                        /* 🚀 性能优化关键指令 */
-                                        will-change: transform;
-                                        transform: translateZ(0);
-                                        backface-visibility: hidden; /* 防止旋转锯齿 */
-
-                                        animation: counter-spin 5s linear infinite; /* 必须和轨道时间一致 */
-
-                                        /* 👇 你的 GitHub Raw 链接 */
-                                        content: url('https://raw.githubusercontent.com/XIAOHAY/Snowboard-AI-Pricing/main/img/dwarf.png'); 
-                                    }
-
-                                    /* 7. 文字提示 */
-                                    .loading-text {
-                                        font-size: 1.4rem;
-                                        font-weight: bold;
-                                        letter-spacing: 1px;
-                                        margin-bottom: 8px;
-                                        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-                                    }
-
-                                    .sub-text {
-                                        font-size: 0.9rem;
-                                        color: #dddddd;
-                                        line-height: 1.4;
-                                    }
-
-                                    /* --- 关键帧 --- */
-                                    @keyframes orbit-spin {
-                                        0% { transform: rotate(0deg); }
-                                        100% { transform: rotate(360deg); }
-                                    }
-
-                                    @keyframes counter-spin {
-                                        0% { transform: rotate(0deg); }
-                                        100% { transform: rotate(-360deg); }
-                                    }
-                                </style>
-
-                                <div class="loading-overlay">
-                                    <div class="glass-card">
-                                        <div class="stage-container">
-                                            <img class="center-obj">
-                                            <div class="orbit-container">
-                                                <img class="dwarf-artisan">
-                                            </div>
-                                        </div>
-                                        <div class="loading-text">⚒️ 宗师鉴定中...</div>
-                                        <div class="sub-text">AI 正在云端比对全球市场数据<br>请稍候片刻</div>
-                                    </div>
-                                </div>
-                                """
-
-                # 渲染动画
-                loading_placeholder.markdown(loading_html, unsafe_allow_html=True)
-                # ==================================================
-                # 🎬 动画代码结束
-                # ==================================================
-
+                # 播放动画
+                loading_placeholder.markdown(LOADING_HTML, unsafe_allow_html=True)
                 try:
                     # 1. 视觉分析
                     analysis_results = []
@@ -274,8 +242,6 @@ with tab1:
                             "edge_damage": final_analysis.get("edge_damage"),
                             "calculation_process": price_result.get("calculation_process", [])
                         }
-
-                        # ✅ 分析完成，清空动画
                         loading_placeholder.empty()
                         st.rerun()
                     else:
@@ -283,9 +249,125 @@ with tab1:
                         st.error("未能识别图片内容")
 
                 except Exception as e:
-                    # ❌ 出错也要清空动画，否则用户会卡在遮罩里
                     loading_placeholder.empty()
                     st.error(f"运行出错: {e}")
+
+        # ==========================================
+        # ⚡️ 演示案例区域 (新增)
+        # ==========================================
+        st.markdown("---")
+        st.markdown("### ⚡️ 没有照片？一键体验演示用例")
+        st.caption("点击下方按钮，体验 AI 对不同成色雪板的精准识别与定价。")
+
+        # 1. 定义演示配置字典
+        # 请确保你的项目根目录下有 examples 文件夹，并放入对应的图片
+        DEMO_CASES = {
+            "demo_good": {
+                "label": "✨ 挑战：热门保值神板",
+                "path": "./examples/sample_good.jpg",
+                "caption": "案例A: 准新 Burton Custom",
+                "force_brand": "BURTON",  # 强制修正品牌
+                "force_model": "CUSTOM",  # 强制修正型号
+                "hint": "Burton Custom 2024"  # 给 AI 的提示
+            },
+            "demo_bad": {
+                "label": "🥊 挑战：识别严重损伤",
+                "path": "./examples/sample_bad.jpg",
+                "caption": "案例B: 板底严重划痕",
+                "force_brand": "CAPITA",
+                "force_model": "DOA",
+                "hint": "Capita DOA, has heavy scratch"
+            },
+            "demo_old": {
+                "label": "🔍 挑战：鉴定日系老款",
+                "path": "./examples/sample_old.jpg",
+                "caption": "案例C: Gray 老款",
+                "force_brand": "GRAY",
+                "force_model": "DESPERADO (OLD)",
+                "hint": "Gray Desperado Ti Type-R"
+            }
+        }
+
+
+        # 2. 定义演示运行函数
+        def run_demo_analysis(case_key):
+            cfg = DEMO_CASES[case_key]
+            image_path = cfg["path"]
+
+            # 播放动画
+            loading_placeholder.markdown(LOADING_HTML, unsafe_allow_html=True)
+
+            try:
+                # 调用 AI (真实分析损伤/成色)
+                res = analyze_snowboard_image(image_path, user_hint=cfg["hint"])
+
+                # 🔥 关键：强制修正品牌和型号 (Binding Logic)
+                # 这样即使 AI 没认出 Logo，定价逻辑也绝对准确
+                res["brand"] = cfg["force_brand"]
+                res["possible_model"] = cfg["force_model"]
+
+                # 后续流程完全复用
+                analysis_results = [res]
+
+                if analysis_results:
+                    final_analysis = merge_analysis_results(analysis_results)
+                    price_result = estimate_secondhand_price(final_analysis)
+
+                    p_low = price_result.get("price_low", 0)
+                    p_high = price_result.get("price_high", 0)
+
+                    expert_comment = generate_expert_review(
+                        brand=final_analysis.get("brand"),
+                        model=final_analysis.get("possible_model"),
+                        condition_score=final_analysis.get("condition_score"),
+                        price_low=p_low, price_high=p_high,
+                        base_damage=final_analysis.get("base_damage"),
+                        edge_damage=final_analysis.get("edge_damage")
+                    )
+
+                    st.session_state.current_data = {
+                        "suggest_price": int((p_low + p_high) / 2),
+                        "price_low": p_low,
+                        "price_high": p_high,
+                        "expert_review": expert_comment,
+                        "brand": final_analysis.get("brand"),
+                        "model": final_analysis.get("possible_model"),
+                        "condition_score": final_analysis.get("condition_score"),
+                        "base_damage": final_analysis.get("base_damage"),
+                        "edge_damage": final_analysis.get("edge_damage"),
+                        "calculation_process": price_result.get("calculation_process", []),
+                        # 记录演示图片路径，用于结果页回显
+                        "demo_image_path": image_path
+                    }
+                    loading_placeholder.empty()
+                    st.rerun()
+            except Exception as e:
+                loading_placeholder.empty()
+                st.error(f"演示案例运行失败: {e} (请检查 examples 文件夹下是否有对应图片)")
+
+
+        # 3. 渲染演示按钮
+        dc1, dc2, dc3 = st.columns(3)
+
+        # 只有当文件存在时才渲染，防止报错
+        if os.path.exists("./examples/sample_good.jpg"):
+            with dc1:
+                st.image(DEMO_CASES["demo_good"]["path"], use_column_width=True)
+                if st.button(DEMO_CASES["demo_good"]["label"], use_container_width=True):
+                    run_demo_analysis("demo_good")
+
+        if os.path.exists("./examples/sample_bad.jpg"):
+            with dc2:
+                st.image(DEMO_CASES["demo_bad"]["path"], use_column_width=True)
+                if st.button(DEMO_CASES["demo_bad"]["label"], use_container_width=True):
+                    run_demo_analysis("demo_bad")
+
+        if os.path.exists("./examples/sample_old.jpg"):
+            with dc3:
+                st.image(DEMO_CASES["demo_old"]["path"], use_column_width=True)
+                if st.button(DEMO_CASES["demo_old"]["label"], use_container_width=True):
+                    run_demo_analysis("demo_old")
+
 
     # --- B. 结果展示 & 交互区 (有数据时显示) ---
     else:
@@ -301,6 +383,18 @@ with tab1:
 
         st.divider()
         st.success("✅ 鉴定完成")
+
+        # 🔥 如果是演示模式，回显原始图片方便对比
+        if "demo_image_path" in data:
+            with st.expander("📷 查看原始图片 (点击展开)", expanded=True):
+                c_img, c_info = st.columns([1, 2])
+                with c_img:
+                    st.image(data["demo_image_path"], use_column_width=True)
+                with c_info:
+                    st.markdown(f"**AI 识别重点：**\n\n"
+                                f"- 品牌：`{data.get('brand')}`\n"
+                                f"- 损伤检测：`{data.get('base_damage')}`\n"
+                                f"- 成色评分：`{data.get('condition_score')}`")
 
         # 1. 价格看板
         c1, c2, c3 = st.columns(3)

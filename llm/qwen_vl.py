@@ -50,10 +50,10 @@ def clean_json_text(text: str) -> str:
 # ===============================
 # 3. 定义 Prompt (提示词)
 # ===============================
-DEFAULT_PROMPT = """
-你是一名专业的二手滑雪装备鉴定师。
-请分析图片，提取雪板的品牌(Brand)和型号(Model)。
+# 修改 llm/qwen_vl.py 中的 DEFAULT_PROMPT
 
+DEFAULT_PROMPT = """
+你是一名极其严苛的二手滑雪板鉴定专家。你的任务是根据图片客观描述损伤，并依据严格标准进行评分。
 【重要提示】
 1. 图片中可能包含竖排、旋转或艺术字体的 LOGO，请仔细辨认。
 2. **注意区分通用词与品牌**：例如 "GRAY", "RIDE", "SIGNAL", "YES", "FLOW" 在这里是【品牌名】，而不是普通单词。
@@ -64,19 +64,33 @@ BURTON, SALOMON, CAPITA, NITRO, K2, RIDE, ROME SDS, JONES, LIB TECH, GNU,
 GRAY, OGASAKA, BC STREAM, MOSS, GENTEMSTICK, YONEX, 011 ARTISTIC, RICE28,
 BATALEON, LOBSTER, ARBOR, DC, HEAD, FLOW, FLUX, UNION, NIDECKER, YES,
 NOBADAY, VECTOR, REV, TERROR.
+【第一步：强制视觉推理】
+在输出 JSON 之前，你必须先在心中（或作为"thinking"字段）确认以下细节：
+1. **板面 (Top sheet)**：是否有边缘崩裂(Chipping)？固定器安装区是否有压痕？
+2. **板底 (Base)**：是否有露芯深划痕(Core Shot)？还是仅仅是发丝痕(Hairline)？
+3. **板刃 (Edge)**：是否有断裂？是否有锈迹（浮锈还是腐蚀）？
 
-请【严格】以 JSON 格式返回：
+【第二步：严格评分标准 (Rubric)】
+请完全按照以下标准打分，禁止自由发挥：
+- **9-10分**：充新。仅有极其轻微的使用痕迹，无肉眼可见划痕。
+- **7-8分**：良好。板面有少量轻微划痕，板刃无锈或仅有浮锈，板底无深伤。
+- **5-6分**：伊拉克成色。板面边缘有崩裂，板底有明显划痕但未漏芯，板刃有锈。
+- **1-4分**：报废。板刃断裂、板底漏芯、板层开裂。
+
+【第三步：输出格式】
+请输出且仅输出以下 JSON 格式：
 {
-  "brand": "品牌 (请优先从上述列表中匹配，英文大写)",
-  "possible_model": "型号名称 (板面上的其他英文单词，如 Desperado, Custom, DOA)", 
-  "condition_score": "1-10 的整数",
-  "base_damage": "板底损伤描述",
-  "edge_damage": "边刃损伤描述",
-  "can_use": true 或 false
+  "reasoning": "一句话描述你看到的损伤证据（例如：板头左侧有明显的边缘崩裂，板底有两条浅划痕）",
+  "brand": "品牌英文大写 (例如 BURTON)",
+  "possible_model": "型号猜测",
+  "condition_score": "1-10的整数",
+  "base_damage": "板底具体损伤 (无/轻微/严重)",
+  "edge_damage": "板刃具体损伤 (无/浮锈/腐蚀/断裂)",
+  "can_use": true
   "is_old_model": true 或 false (判断依据：板面设计风格是否陈旧，或者明显的旧款LOGO。如果无法判断，返回 false),
-  ...
 }
 """
+
 
 
 # ===============================
@@ -125,8 +139,8 @@ def analyze_snowboard_image(image_path: str, user_hint: str = None) -> dict:
                     }
                 ],
                 # 🔥【核心修改】加上这两行参数，给视觉模型“降温”
-                temperature = 0.1,  # 接近 0 表示极度理性，每次输出几乎一致
-                top_p = 0.2,  # 限制它的发散思维，只选概率最高的词
+                temperature = 0.01,  # 接近 0 表示极度理性，每次输出几乎一致
+                top_p = 0.1,  # 限制它的发散思维，只选概率最高的词
             )
 
             # 检查 HTTP 状态码
