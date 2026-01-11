@@ -197,7 +197,7 @@ with tab1:
                 "demo_old": {
                     "label": "🔍 鉴定日系经典",
                     "paths": ["./examples/old_top.jpg", "./examples/old_base.jpg", "./examples/old_logo.jpg"],
-                    "desc": "ogasaka fcs",
+                    "desc": "老牌保值款",
                     "force_brand": "ogasaka", "force_model": "fcs", "hint": "ogasaka fcs 2526新款"
                 }
             }
