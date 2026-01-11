@@ -186,19 +186,19 @@ with tab1:
                     "label": "✨ 挑战：热门保值神板",
                     "paths": ["./examples/good_top.jpg", "./examples/good_base.jpg", "./examples/good_edge.jpg"],
                     "desc": "Burton Custom (准新/三视图)",
-                    "force_brand": "BURTON", "force_model": "CUSTOM", "hint": "Burton Custom 2024"
+                    "force_brand": "BURTON", "force_model": "Good Company龙年限定", "hint": "Burton Good Company龙年限定"
                 },
                 "demo_bad": {
                     "label": "🥊 挑战：识别严重损伤",
                     "paths": ["./examples/bad_top.jpg", "./examples/bad_base.jpg", "./examples/bad_detail.jpg"],
                     "desc": "板底严重划痕 (多角度)",
-                    "force_brand": "CAPITA", "force_model": "DOA", "hint": "Capita DOA, heavy scratch"
+                    "force_brand": "Burton", "force_model": "custom", "hint": "Burton Custom , heavy scratch"
                 },
                 "demo_old": {
-                    "label": "🔍 鉴定日系老款",
+                    "label": "🔍 鉴定日系经典",
                     "paths": ["./examples/old_top.jpg", "./examples/old_base.jpg", "./examples/old_logo.jpg"],
-                    "desc": "Gray Desperado (老款)",
-                    "force_brand": "GRAY", "force_model": "DESPERADO (OLD)", "hint": "Gray Desperado Ti Type-R"
+                    "desc": "ogasaka fcs",
+                    "force_brand": "ogasaka", "force_model": "fcs", "hint": "ogasaka fcs 2526新款"
                 }
             }
 
